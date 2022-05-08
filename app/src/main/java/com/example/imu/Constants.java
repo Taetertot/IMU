@@ -16,4 +16,8 @@ public class Constants {
     static ArrayList<Float> gravx;
     static ArrayList<Float> gravy;
     static ArrayList<Float> gravz;
+    static float dt = (float) 0.05;
+    static ArrayList<Float> tilt_angle_degrees;
+    static ArrayList<Float> tilt_angle_radians;
+    static ArrayList<String> calculation_log;
 }

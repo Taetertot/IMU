@@ -55,6 +55,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},1);
         onRequestPermissionsResult(1,new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},grantResults);
 
+
+
         // ui logic
         Constants.startButton = (Button)findViewById(R.id.button);
         Constants.stopButton = (Button)findViewById(R.id.button2);
@@ -73,6 +75,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         //sensorManager.registerListener(this, gravitySensor, SensorManager.SENSOR_DELAY_NORMAL);
         //sensorManager.registerListener(this, MagnetometerSensor, SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(this, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_GAME);
 
         // on click listeners
         Constants.startButton.setOnClickListener(new View.OnClickListener() {
@@ -88,6 +91,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 Constants.gravz=new ArrayList<>();
                 Constants.startButton.setEnabled(false);
                 Constants.stopButton.setEnabled(true);
+                Constants.tilt_angle_degrees=new ArrayList<>();
+                Constants.tilt_angle_degrees.add( (float) 0.0);
+                Constants.tilt_angle_radians=new ArrayList<>();
+                Constants.tilt_angle_radians.add( (float) 0.0);
+                Constants.calculation_log=new ArrayList<>();
 
                 lineDataX=new ArrayList<>();
                 lineDataY=new ArrayList<>();
@@ -117,32 +125,104 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         if (Constants.start) {
-            if (//sensorEvent.sensor.equals(accelerometerSensor)) {
-                sensorEvent.sensor.equals(gyroSensor)) {
+            if (sensorEvent.sensor.equals(accelerometerSensor)) {
                 Constants.accx.add(sensorEvent.values[0]);
                 Constants.accy.add(sensorEvent.values[1]);
                 Constants.accz.add(sensorEvent.values[2]);
-                if (Constants.cumligyrox.size()==0){
+
+                Constants.calculation_log.add("accel " + sensorEvent.values[0] + ", " + sensorEvent.values[1] + ", '" + sensorEvent.values[2]);
+
+            } else if ( sensorEvent.sensor.equals(gyroSensor)) {
+                //if (Constants.cumligyrox.size()==0){
                     Constants.cumligyrox.add(sensorEvent.values[0]);
                     Constants.cumligyroy.add(sensorEvent.values[1]);
-                }
+
+                    Constants.calculation_log.add("gyro " + sensorEvent.values[0] + ", " + sensorEvent.values[1]);
+
+                /*}
                 else{
                     Constants.cumligyrox.add(sensorEvent.values[0]+Constants.cumligyrox.get(Constants.cumligyrox.size()-1));
                     Constants.cumligyroy.add(sensorEvent.values[1]+Constants.cumligyroy.get(Constants.cumligyroy.size()-1));
-                }
+                }*/
                 //graphing logic
-                graphData(sensorEvent.values);
+                //graphData(sensorEvent.values);
             }
-            else {
+           /* else {
                 Constants.gravx.add(sensorEvent.values[0]);
                 Constants.gravy.add(sensorEvent.values[1]);
                 Constants.gravz.add(sensorEvent.values[2]);
             }
+            */
+
+
+            //angle = .98 * (angle + gyrData*dt) + .02 * accel
+
+            float accel_tilt_radians;
+
+            if(Constants.accx.size() == 0 || Constants.accx.get(Constants.accx.size() - 1) == 0) {
+                    accel_tilt_radians = 0;
+            } else {
+
+                float accel_x = Constants.accx.get(Constants.accx.size() - 1);
+                float accel_y = Constants.accy.get(Constants.accy.size() - 1);
+                float accel_z = Constants.accz.get(Constants.accz.size() - 1);
+
+                accel_tilt_radians = accel_z / (float) Math.pow( accel_x*accel_x + accel_y*accel_y + accel_z*accel_z, .5);
+                accel_tilt_radians = (float) Math.acos(accel_tilt_radians);
+            }
+
+            float gyro_tilt_radians;
+
+            if(Constants.cumligyrox.size() == 0) {
+                    gyro_tilt_radians = 0;
+            } else {
+                 float cumliX = Constants.cumligyrox.get(Constants.cumligyrox.size() - 1);
+                 float cumliY = Constants.cumligyroy.get(Constants.cumligyroy.size() - 1);
+
+                gyro_tilt_radians = (float) Math.pow( cumliX*cumliX + cumliY*cumliY, .5 );
+            }
+
+            float angle_radians = (float).98 * (Constants.tilt_angle_radians.get(Constants.tilt_angle_radians.size() - 1) + gyro_tilt_radians*Constants.dt) + (float).02 * accel_tilt_radians;
+
+
+            float angle_degrees = (float) Math.toDegrees(angle_radians);
+
+            Constants.tilt_angle_radians.add(angle_radians);
+            Constants.tilt_angle_degrees.add(angle_degrees);
+
+            Constants.calculation_log.add("Calculation " + "accel_tilt = " + accel_tilt_radians + "; gyro_til = " + gyro_tilt_radians + "; gyro_tilt_times_dt = " + (gyro_tilt_radians*Constants.dt) + "; previous = " + Constants.tilt_angle_radians.get(Constants.tilt_angle_radians.size() - 1) + "; final = " + angle_degrees);
+
+            graphDataOne(angle_degrees);
+
+
+
+
             //Log.e("log",String.format("%s %.2f %.2f %.2f",sensorEvent.sensor.getName(),sensorEvent.values[0],sensorEvent.values[1],sensorEvent.values[2]));
             //Log.e("log",String.format("%s %.2f %.2f","cumliGyro",cumliGyroX,cumliGyroY));
         }
     }
 
+    public void graphDataOne(float value) {
+        lineDataX.add(new Entry(counter, value));
+
+        if(lineDataX.size() > lim) {
+                lineDataX.remove(0);
+        }
+        counter+=1;
+
+        LineDataSet data1 = new LineDataSet(lineDataX, "tilt");
+        data1.setDrawCircles(false);
+
+        data1.setColor(((MainActivity)this).getResources().getColor(R.color.red));
+        List<ILineDataSet> data = new ArrayList<>();
+        data.add(data1);
+
+        LineData lineData = new LineData(data);
+        lineChart.setData(lineData);
+        lineChart.notifyDataSetChanged();
+        lineChart.invalidate();
+
+    }
     public void graphData(float[] values) {
         lineDataX.add(new Entry(counter,values[0]));
         lineDataY.add(new Entry(counter,values[1]));
@@ -177,7 +257,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     protected void onResume() {
         super.onResume();
         //sensorManager.registerListener(this, gravitySensor, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_GAME);
         sensorManager.registerListener(this, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
     }
 

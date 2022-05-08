@@ -19,11 +19,24 @@ public class FileOperations {
                     if (!path.exists()) {
                         path.mkdirs();
                     }
-                    File file = new File(dir, fname+"-gyro.txt");
+                    File file = new File(dir, fname+"-comp_tilt.txt");
                     BufferedWriter outfile = new BufferedWriter(new FileWriter(file,false));
-                    for (int i = 0; i < Constants.accx.size(); i++) {
+                    for (int i = 0; i < Constants.tilt_angle_degrees.size(); i++) {
                         //outfile.append(Constants.accx.get(i)+","+Constants.accy.get(i)+","+Constants.accz.get(i));
-                        outfile.append(Constants.cumligyrox.get(i)+","+Constants.cumligyroy.get(i));
+                        //outfile.append(Constants.cumligyrox.get(i)+","+Constants.cumligyroy.get(i));
+                        outfile.append("" + Constants.tilt_angle_degrees.get(i));
+                        outfile.newLine();
+                    }
+                    outfile.flush();
+                    outfile.close();
+
+                    file = new File(dir, fname+"-comp_tilt_calculation.txt");
+                    outfile = new BufferedWriter(new FileWriter(file,false));
+                    for (int i = 0; i < Constants.calculation_log.size(); i++) {
+                        //outfile.append(Constants.accx.get(i)+","+Constants.accy.get(i)+","+Constants.accz.get(i));
+                        //outfile.append(Constants.cumligyrox.get(i)+","+Constants.cumligyroy.get(i));
+                        //outfile.append("" + Constants.tilt_angle_degrees.get(i));
+                        outfile.append(Constants.calculation_log.get(i));
                         outfile.newLine();
                     }
                     outfile.flush();
